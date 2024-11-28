@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 import cv2
 import numpy as np
 import tensorflow as tf
@@ -9,10 +9,13 @@ import base64
 import json
 import io
 from PIL import Image
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Blueprint for the frame extraction API
-frame_extraction_api = Blueprint('frame_extraction_api',__name__)
+frame_extraction_api = Blueprint('frame_extraction_api', __name__)
 
 # Define class names based on model training classes
 class_names = [
@@ -28,54 +31,40 @@ class_names = [
 ]
 
 # Load the model
-model = tf.keras.models.load_model('models_files/Resnetmodel_final.keras')
+logging.debug("Loading model...")
+try:
+    model = tf.keras.models.load_model('models_files/Resnetmodel_final.keras')
+    logging.info("Model loaded successfully.")
+except Exception as e:
+    logging.error(f"Error loading model: {e}")
+    model = None
 
 # Define desired image dimensions and batch size
 img_height, img_width = 384, 512
 batch_size = 16
 
-"""def preprocess_frame(frame):
+def preprocess_frame(frame):
     try:
+        logging.debug("Preprocessing a frame...")
         resized_frame = cv2.resize(frame, (img_width, img_height))
         rgb_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
-        img_array = image.img_to_array(rgb_frame) # Normalize pixel values
+        img_array = image.img_to_array(rgb_frame)  # Normalize pixel values
         return img_array
     except Exception as e:
-        print(f"Error preprocessing frame: {e}")
-        return None"""
+        logging.error(f"Error preprocessing frame: {e}")
+        return None
 
-def preprocess_frame(frames):
-    preprocessed_frames = []
-    for frame in frames:
-        try:
-            if isinstance(frame, str) and os.path.exists(frame):  # Handle file paths
-                img = tf.keras.preprocessing.image.load_img(frame, target_size=(384, 512))
-                img_array = tf.keras.preprocessing.image.img_to_array(img)
-            elif isinstance(frame, dict) and 'frame_data' in frame:  # Handle base64-encoded frames
-                img_data = base64.b64decode(frame['frame_data'])
-                img = Image.open(io.BytesIO(img_data)).resize((512, 384))  # Resizing here
-                img_array = tf.keras.preprocessing.image.img_to_array(img)
-            elif isinstance(frame, np.ndarray):  # Handle already preprocessed frames
-                # Resize using OpenCV for numpy arrays
-                img_array = cv2.resize(frame, (512, 384))
-            else:
-                raise ValueError(f"Unexpected frame format: {type(frame)}")
-
-            preprocessed_frames.append(img_array)
-        except Exception as e:
-            print(f"Error processing frame: {e}")
-            continue
-
-    return np.array(preprocessed_frames)
-
-    
 def classify_and_send_frames(video_file_path):
+    logging.info(f"Processing video: {video_file_path}")
     cap = cv2.VideoCapture(video_file_path)
     if not cap.isOpened():
-        return {'error': f"Failed to open video file: {video_file_path}"}
+        error_msg = f"Failed to open video file: {video_file_path}"
+        logging.error(error_msg)
+        return {'error': error_msg}
 
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30  # Default to 30 FPS if not available
-    frame_interval = max(int(fps / 10), 1)  # Minimum interval is 1
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30
+    frame_interval = max(int(fps / 10), 1)
+    logging.debug(f"Video FPS: {fps}, Frame interval: {frame_interval}")
 
     class_predictions = {class_name: [] for class_name in class_names}
     detected_classes = set()
@@ -84,30 +73,35 @@ def classify_and_send_frames(video_file_path):
     while True:
         ret, frame = cap.read()
         if not ret:
+            logging.info("Reached end of video.")
             break
 
         if frame_count % frame_interval == 0:
+            logging.debug(f"Processing frame {frame_count}...")
             processed_frame = preprocess_frame(frame)
             if processed_frame is not None:
                 batch_frames.append(processed_frame)
 
             if len(batch_frames) == batch_size:
-                predictions = model.predict(np.array(batch_frames))
-                for idx, prediction in enumerate(predictions):
-                    predicted_index = np.argmax(prediction)
-                    confidence = prediction[predicted_index]
-                    predicted_class_name = class_names[predicted_index]
+                try:
+                    logging.debug("Predicting batch of frames...")
+                    predictions = model.predict(np.array(batch_frames))
+                    for idx, prediction in enumerate(predictions):
+                        predicted_index = np.argmax(prediction)
+                        confidence = prediction[predicted_index]
+                        predicted_class_name = class_names[predicted_index]
 
-                    detected_classes.add(predicted_class_name)
-                    class_predictions[predicted_class_name].append((confidence, batch_frames[idx]))
+                        detected_classes.add(predicted_class_name)
+                        class_predictions[predicted_class_name].append((confidence, batch_frames[idx]))
 
-                    # Keep only the top 5 frames per class
-                    class_predictions[predicted_class_name] = sorted(
-                        class_predictions[predicted_class_name],
-                        key=lambda x: x[0],  # Sort by confidence
-                        reverse=True
-                    )[:5]
-
+                        # Keep only the top 5 frames per class
+                        class_predictions[predicted_class_name] = sorted(
+                            class_predictions[predicted_class_name],
+                            key=lambda x: x[0],  # Sort by confidence
+                            reverse=True
+                        )[:5]
+                except Exception as e:
+                    logging.error(f"Error during prediction: {e}")
                 batch_frames.clear()
 
         frame_count += 1
@@ -116,44 +110,55 @@ def classify_and_send_frames(video_file_path):
 
     frames_data = []
     for class_name, frames in class_predictions.items():
-        for idx, (confidence, frame) in enumerate(frames):
+        for _, frame in frames:
             is_success, buffer = cv2.imencode(".jpg", (frame * 255).astype(np.uint8))
             if is_success:
                 frame_base64 = base64.b64encode(buffer).decode('utf-8')
-                frames_data.append({
-                    'class': class_name,
-                    'confidence': float(confidence),
-                    'frame_index': idx + 1,
-                    'frame_data': frame_base64
-                })
+                frames_data.append(frame_base64)
 
+    logging.info("Sending frames to preprocessing API.")
+    response = send_frames_to_preprocessing(frames_data)
+    return response
+
+def send_frames_to_preprocessing(frames_data):
     preprocessing_url = 'http://localhost:5000/api/preprocessing_api/preprocessing'
-
-    payload = json.dumps({'frames': frames_data})
+    payload = {'frames': frames_data}
     headers = {'Content-Type': 'application/json'}
+    logging.debug("Sending frames to preprocessing API...")
 
+    
     try:
-        response = requests.post(preprocessing_url, data=payload, headers=headers, timeout=10)
+        response = requests.post(preprocessing_url, json=payload, headers=headers, timeout=300)
         response.raise_for_status()
+        logging.debug("Received response from preprocessing API.")
         return response.json()
     except requests.exceptions.RequestException as e:
+        logging.error(f"Preprocessing API request failed: {e}")
         return {'error': f"Preprocessing API request failed: {e}"}
+    
 
 @frame_extraction_api.route('/process_local_video', methods=['GET'])
 def process_local_video():
-    video_path = r'D:\UpWork\NewRepo\video\newV6.mp4'
+    
+
+    video_path = r'D:\UpWork\NewRepo\video\video2.mp4'
 
     if not os.path.exists(video_path):
-        return jsonify({'error': f"Video file not found at {video_path}"}), 404
+        error_msg = f"Video file not found at {video_path}"
+        logging.error(error_msg)
+        return jsonify({'error': error_msg}), 404
 
     try:
+        
         response_data = classify_and_send_frames(video_path)
+        
         if 'error' in response_data:
-            return jsonify({'error': response_data['error'], 'details': response_data.get('details', '')}), 400
+            return jsonify({'error': response_data['error']}), 401
 
         return jsonify({
             'message': 'Frame extraction and preprocessing completed successfully',
             'preprocessing_result': response_data
         }), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logging.error(f"Error processing video: {e}")
+        return jsonify({'error': f"An error occurred: {str(e)}"}), 500

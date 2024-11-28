@@ -21,6 +21,7 @@ mediapipe = "*"
 flask-cors = "*"
 keras="*"
 tensorflow = "*"
+yolo = "*"
 
 [dev-packages]
 

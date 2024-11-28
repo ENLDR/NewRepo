@@ -1,98 +1,146 @@
-# preprocessing.py
 from flask import Blueprint, jsonify, request
 import requests
-import tensorflow as tf
-import torch
-import numpy as np  # Import numpy for array handling
+import logging
+import numpy as np
+import base64
+from io import BytesIO
+from PIL import Image
+import json
+import cv2
+from ultralytics import YOLO
 
+# Initialize Blueprint and Logging
 preprocessing_api = Blueprint('preprocessing_api', __name__)
+logging.basicConfig(level=logging.DEBUG)
 
-# Load your model globally
-model_path = 'models_files/yolov8n-seg.pt'  # Change this to your model path
-model = torch.load(model_path)
+# Load YOLOv8 model
+try:
+    model_path = 'models_files/yolov8n-seg.pt'  # Update with your actual model path
+    logging.info(f"Loading YOLOv8 model from {model_path}...")
+    model = YOLO(model_path)
+    logging.info("YOLOv8 model loaded successfully.")
+except Exception as e:
+    logging.error(f"Failed to load YOLOv8 model: {e}")
+    raise
 
-'''def preprocess_frames(frame_paths):
-    """
-    Preprocess the frames by loading images, resizing, and normalizing.
-    Args:
-        frame_paths (list): List of paths to the frames.
-    Returns:
-        np.array: Array of preprocessed frames.
-    """
-    preprocessed_frames = []
-
-    for frame_path in frame_paths:
-        # Load the image from frame_path, preprocess it
-        image = tf.keras.preprocessing.image.load_img(frame_path, target_size=(384, 512))  # Adjust dimensions as needed
-        image_array = tf.keras.preprocessing.image.img_to_array(image) / 255.0  # Normalize the image
-        preprocessed_frames.append(image_array)
-
-    # Convert the list of preprocessed frames into a NumPy array
-    return np.array(preprocessed_frames)'''
+# Function to preprocess frames
 def preprocess_frames(raw_frames):
-    """
-    Preprocess the frames by decoding raw image data, resizing, and normalizing.
-    Args:
-        raw_frames (list): List of raw image data (Base64 strings or binary data).
-    Returns:
-        np.array: Array of preprocessed frames.
-    """
+    
     preprocessed_frames = []
+    logging.info("Starting preprocessing of frames...")
 
-    for raw_frame in raw_frames:
-        # Decode the Base64 string into an image
-        image_data = base64.b64decode(raw_frame)
-        image = Image.open(BytesIO(image_data)).convert("RGB")
+    for i, raw_frame in enumerate(raw_frames):
+        try:
+            logging.debug(f"Preprocessing frame {i + 1}/{len(raw_frames)}...")
 
-        # Resize the image and convert it to a NumPy array
-        image = image.resize((384, 512))  # Adjust dimensions as needed
-        image_array = np.array(image) / 255.0  # Normalize the image
+            # Decode the Base64 string into an image
+            image_data = base64.b64decode(raw_frame)
+            image = Image.open(BytesIO(image_data)).convert("RGB")
+            image = np.array(image)
 
-        preprocessed_frames.append(image_array)
+            # Enhance image using CLAHE
+            logging.debug(f"Enhancing frame {i + 1} using CLAHE...")
+            enhanced_image = enhance_image_with_clahe(image)
+            
 
-    # Convert the list of preprocessed frames into a NumPy array
+            # Apply YOLOv8 background removal
+            logging.debug(f"Removing background from frame {i + 1} using YOLOv8...")
+            background_removed_image = apply_yolov8_background_removal(enhanced_image)
+
+
+
+            # Resize the image and normalize pixel values
+            image_resized = cv2.resize(background_removed_image, (384, 512))
+            logging.info("Resized 384*512 Successfully...")
+            
+            
+
+            preprocessed_frames.append(image_resized)
+        except Exception as e:
+            logging.error(f"Error preprocessing frame {i + 1}: {e}")
+            raise
+
+    logging.info(f"Preprocessed {len(preprocessed_frames)} frames successfully.")
     return np.array(preprocessed_frames)
+
+def enhance_image_with_clahe(image):
+    
+    lab = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
+    l, a, b = cv2.split(lab)
+
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    cl = clahe.apply(l)
+
+    enhanced_lab = cv2.merge((cl, a, b))
+    enhanced_image = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2RGB)
+    return enhanced_image
+
+def apply_yolov8_background_removal(image):
+    
+    # Assuming 'model' is preloaded with YOLOv8 model
+    results = model.predict(image)
+
+    if not results or results[0].masks.data is None or len(results[0].masks.data) == 0:
+        logging.warning("No mask detected by YOLOv8. Returning original image.")
+        return image
+
+
+    mask = results[0].masks.data[0].cpu().numpy()
+    mask = cv2.resize(mask, (image.shape[1], image.shape[0]))
+    mask = (mask * 255).astype(np.uint8)
+
+    foreground = cv2.bitwise_and(image, image, mask=mask)
+    background_removed = np.full_like(image, 255)  # White background
+    background_removed[mask == 255] = foreground[mask == 255]
+
+    return background_removed
 
 @preprocessing_api.route('/preprocessing', methods=['POST'])
 def preprocessing():
-    data = request.json
-    raw_frames = data.get('frames')
-
-    if not raw_frames:
-        return jsonify({'error': 'No frames provided'}), 400
-
+    logging.info("Preprocessing API endpoint called.")
     try:
-        # Preprocess the raw frames
-        preprocessed_frames = preprocess_frames(raw_frames)  # Call the updated preprocessing function
+        # Parse JSON payload
+        data = request.get_json()
+        logging.debug(f"Received data: {json.dumps(data, indent=2)}")
 
-        # After preprocessing, send the data to the main model API
-        main_model_url = 'http://localhost:5000/api/main_model_api/main_model'  # Change this to your main model API URL
-        response = requests.post(main_model_url, json={'preprocessed_frames': preprocessed_frames.tolist()})  # Convert to list for JSON
+        raw_frames = data.get('frames')
+        video_name = data.get('video_name', 'default_video_name.mp4')
+        player_email = data.get('player_email', 'test@example.com')
 
-        if response.status_code != 200:
-            return jsonify({'error': 'Main model processing failed', 'details': response.json()}), 500
+        if not raw_frames:
+            logging.error("No frames provided in the request.")
+            return jsonify({'error': 'No frames provided'}), 400
 
-        return jsonify({'message': 'Preprocessing completed successfully', 'model_result': response.json()}), 200
+        logging.debug(f"Video name: {video_name}, Player email: {player_email}")
+
+        # Preprocess the frames
+        preprocessed_frames = preprocess_frames(raw_frames)
+
+        # Convert preprocessed frames to base64 strings
+        preprocessed_frames_base64 = []
+        for frame in preprocessed_frames:
+            image = Image.fromarray(frame.astype(np.uint8))
+            buffer = BytesIO()
+            image.save(buffer, format="JPEG")
+            frame_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            preprocessed_frames_base64.append(frame_base64)
+
+        main_model_payload = {
+            'preprocessed_frames': preprocessed_frames_base64
+        }
+
+        main_model_url = 'http://localhost:5000/api/main_model_api/main_model'
+        response = requests.post(main_model_url, json=main_model_payload, timeout=300)
+        response.raise_for_status()
+
+        return jsonify({
+            'message': 'Preprocessing completed successfully',
+        }), 200
+
+    except requests.exceptions.RequestException as req_err:
+        logging.error(f"Request to main model API failed: {req_err}")
+        return jsonify({'error': 'Failed to contact main model API', 'details':str(req_err)}),502
 
     except Exception as e:
-        return jsonify({'error': 'Failed to preprocess frames', 'details': str(e)}), 500
-
-'''@preprocessing_api.route('/preprocessing', methods=['POST'])
-def preprocessing():
-    data = request.json
-    frames = data.get('frames')
-
-    if not frames:
-        return jsonify({'error': 'No frames provided'}), 400
-
-    # Preprocess the frames received from the frame extraction
-    preprocessed_frames = preprocess_frames(frames)  # Call the preprocessing function
-
-    # After preprocessing, send the data to the main model API
-    main_model_url = 'http://localhost:5000/api/main_model_api/main_model'  # Change this to your main model API URL
-    response = requests.post(main_model_url, json={'preprocessed_frames': preprocessed_frames.tolist()})  # Convert to list for JSON
-
-    if response.status_code != 200:
-        return jsonify({'error': 'Main model processing failed', 'details': response.json()}), 500
-
-    return jsonify({'message': 'Preprocessing completed successfully', 'model_result': response.json()}), 200'''
+        logging.error(f"Preprocessing failed: {e}")
+        return jsonify({'error': 'Failed to preprocess frames', 'details':str(e)}),500
