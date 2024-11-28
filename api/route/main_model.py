@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request, current_app
 import os
 import uuid
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.models import load_model
 import cv2
 import base64  # For decoding base64 images
@@ -62,12 +63,11 @@ class_angles = {
     ]
 }
 
-
-@main_model_api.before_app_first_request
-def load_model():
+@main_model_api.before_app_request
+def tf_load_model():
     global model
-    model_path = os.path.join(os.path.dirname(__file__), 'models', 'cnn_model_augmented_dropout2.keras')  # Adjust model path as needed
-    model = load_model(model_path)
+    model_path = 'models_files/cnn_model_augmented_dropout2_02.keras'  # Adjust model path as needed
+    model = tf.keras.models.load_model(model_path)
 
 @main_model_api.before_request
 def setup_image_folder():

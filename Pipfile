@@ -1,7 +1,7 @@
 [[source]]
+name = "pypi"
 url = "https://pypi.python.org/simple"
 verify_ssl = true
-name = "pypi"
 
 [packages]
 flask = "*"
@@ -12,6 +12,15 @@ python-dotenv = "*"
 flask-mysql = "*"
 mysql-connector = "*"
 flask-session = "*"
+numpy="*" 
+opencv-python="*" 
+colorama="*"
+torch="*"
+ultralytics = "*"
+mediapipe = "*"
+flask-cors = "*"
+keras="*"
+tensorflow = "*"
 
 [dev-packages]
 

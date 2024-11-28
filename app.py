@@ -41,9 +41,9 @@ def create_app():
     app.register_blueprint(correct_pose_api, url_prefix='/api')
     app.register_blueprint(upload_video_api, url_prefix='/api')
     app.register_blueprint(edit_video_api, url_prefix='/api')
-    app.register_blueprint(frame_extraction_api, url_prefix='/api')
+    app.register_blueprint(frame_extraction_api, url_prefix='/api/frame_extraction_api')
     app.register_blueprint(main_model_api, url_prefix='/api')
-    app.register_blueprint(preprocessing_api, url_prefix='/api')
+    app.register_blueprint(preprocessing_api, url_prefix='/api/preprocessing_api')
     app.register_blueprint(guide_video_api, url_prefix='/api')
     app.register_blueprint(profile_bp, url_prefix='/api')
 
