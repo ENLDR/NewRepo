@@ -129,7 +129,7 @@ def preprocessing():
             'preprocessed_frames': preprocessed_frames_base64
         }
 
-        main_model_url = 'http://localhost:5000/api/main_model_api/main_model'
+        main_model_url = 'http://192.168.161.35:5000/api/main_model_api/main_model'
         response = requests.post(main_model_url, json=main_model_payload, timeout=300)
         response.raise_for_status()
 

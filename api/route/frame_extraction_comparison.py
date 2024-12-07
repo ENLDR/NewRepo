@@ -121,7 +121,7 @@ def classify_and_send_frames(video_file_path):
     return response
 
 def send_frames_to_preprocessing(frames_data):
-    preprocessing_url = 'http://localhost:5000/api/preprocessing_api/preprocessing'
+    preprocessing_url = 'http://192.168.161.35:5000/api/preprocessing_api/preprocessing'
     payload = {'frames': frames_data}
     headers = {'Content-Type': 'application/json'}
     logging.debug("Sending frames to preprocessing API...")

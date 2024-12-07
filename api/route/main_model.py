@@ -226,8 +226,8 @@ def main_model():
         
 
         preprocessed_frames = data.get('preprocessed_frames')
-        video_name = data.get('video_name', 'video2.mp4')
-        player_email = data.get('player_email', 'sandalisithumani@gmail.com')
+        video_name = data.get('video_name', 'video1.mp4')
+        player_email = data.get('player_email', 'katadofyp@gmail.com')
 
         if not preprocessed_frames:
             logging.error("Missing required preprocessed frames.")
