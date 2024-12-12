@@ -3,24 +3,27 @@ import mysql.connector
 
 guide_video_api = Blueprint('guide_video_api', __name__)
 
+
+def fetch_all_guide_videos():
+    """Fetch all guide videos with name and link only."""
+    connection = current_app.mysql
+    cursor = connection.cursor(dictionary=True)
+    
+    query = "SELECT Guide_video_name, Video_link FROM Guide_video"
+    cursor.execute(query)
+    results = cursor.fetchall()
+    
+    cursor.close()
+    return results
+
 @guide_video_api.route('/all_guide_videos', methods=['GET'])
 def get_all_guide_videos():
     try:
-        connection = current_app.mysql
-        cursor = connection.cursor(dictionary=True)
-
-        query = "SELECT * FROM Guide_video"
-        cursor.execute(query)
-        
-        results = cursor.fetchall()
+        results = fetch_all_guide_videos()
         return jsonify(results), 200
 
     except mysql.connector.Error as error:
         return jsonify({'error': str(error)}), 500
-
-    finally:
-        if connection.is_connected():
-            cursor.close()
 
 @guide_video_api.route('/search_guide_videos', methods=['GET'])
 def search_guide_videos():
