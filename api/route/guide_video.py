@@ -9,7 +9,7 @@ def fetch_all_guide_videos():
     connection = current_app.mysql
     cursor = connection.cursor(dictionary=True)
     
-    query = "SELECT Guide_video_name, Video_link FROM Guide_video"
+    query = "SELECT Guide_video_name, Video_link, Thumbnail_link FROM Guide_video"
     cursor.execute(query)
     results = cursor.fetchall()
     
