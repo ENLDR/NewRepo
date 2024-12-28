@@ -121,7 +121,7 @@ def classify_and_send_frames(video_file_path):
     return response
 
 def send_frames_to_preprocessing(frames_data):
-    preprocessing_url = 'http://192.168.161.35:5000/api/preprocessing_api/preprocessing'
+    preprocessing_url = 'http://192.168.1.10:5000/api/preprocessing_api/preprocessing'
     payload = {'frames': frames_data}
     headers = {'Content-Type': 'application/json'}
     logging.debug("Sending frames to preprocessing API...")
@@ -137,11 +137,13 @@ def send_frames_to_preprocessing(frames_data):
         return {'error': f"Preprocessing API request failed: {e}"}
     
 
-@frame_extraction_api.route('/process_local_video', methods=['GET'])
+@frame_extraction_api.route('/process_local_video', methods=['POST'])
 def process_local_video():
-    
 
-    video_path = r'D:\UpWork\NewRepo\video\video2.mp4'
+    
+    _title = request.get_json().get('title')
+    logging.info(_title)
+    video_path = f"D:/UpWork/NewRepo/uploads/{_title}"
 
     if not os.path.exists(video_path):
         error_msg = f"Video file not found at {video_path}"

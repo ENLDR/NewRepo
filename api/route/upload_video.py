@@ -1,24 +1,52 @@
+import logging
+import os
 from flask import Blueprint, jsonify, request
+import requests
+
 
 upload_video_api = Blueprint('upload_video_api', __name__)
 
+# Configure upload folder
+UPLOAD_FOLDER = './uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
 @upload_video_api.route('/upload_video', methods=['POST'])
 def upload_video():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part in the request'}), 400
-    
-    file = request.files['file']
-    
-    if file.filename == '':
-        return jsonify({'error': 'No file selected for uploading'}), 400
-    
-    # Handle the video upload process here
-    # Example: You can perform any validation or initial processing
-    video_name = file.filename
-    # Example: Get video size for validation or processing
-    video_size = len(file.read())
-    
-    # Example: Prepare response or pass on to next step
-    return jsonify({'message': f'Video {video_name} uploaded successfully', 'size': video_size}), 200
+    if 'video' not in request.files:
+        return jsonify({"error": "No video file in request"}), 400
 
-# No need to run the blueprint directly, it will be run when registered in the main Flask app
+    video = request.files['video']
+    title = video.filename
+    email = request.form.get('email')
+
+    if not video or video.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    # Save the video to the upload folder
+    video_path = os.path.join("./uploads", video.filename)
+    video.save(video_path)
+
+    start_frame_extraction(video.filename)
+
+    return jsonify({
+        "message": "Video uploaded successfully",
+        "video_path": video_path,
+        "title": title,
+        "email": email
+    }), 200
+
+
+def start_frame_extraction(title):
+    frame_extraction_url= 'http://192.168.1.10:5000/api/frame_extraction_api/process_local_video'
+    payload = {'title': title}
+    headers = {'Content-Type': 'application/json'}
+
+    try:
+        response = requests.post(frame_extraction_url, json=payload, headers=headers, timeout=3000)
+        response.raise_for_status()
+        logging.debug("Received response from upload Video API.")
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logging.error(f"frame Extraction API request failed: {e}")
+        return {'error': f"frame Extraction API request failed: {e}"}
