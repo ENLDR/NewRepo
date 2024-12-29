@@ -27,6 +27,45 @@ pose = mp_pose.Pose(
     min_detection_confidence=0.5
 )
 
+# Predefined angles and mappings
+'''class_angles = {
+    'hachijidachijodanyoko': [
+        [178.6704642, 121.4324436, 178.6704642, 121.4324436, 176.2882244, 176.2882244, 179.0472569, 155.9306886, 174.7958128, 0],
+        [74.73670094, 179.6333059, 74.73670094, 179.6333059, 179.2610734, 179.2610734, 177.7071013, 157.4409467, 146.1440207, 0]
+    ],
+    'sanchindachiageuke': [
+        [117.6311735, 177.122714, 117.6311735, 177.122714, 172.4470531, 172.4470531, 179.84531, 178.0124464, 154.3915227, 0],
+        [88.35833, 130.8359801, 88.35833, 130.8359801, 178.8655222, 178.8655222, 179.2608471, 159.6653805, 172.8783815, 0]
+    ],
+    'sanchindachijodantsuki': [
+        [79.67428505, 117.6143462, 79.67428505, 117.6143462, 175.4425771, 175.4425771, 179.9083308, 179.6819875, 162.7090183, 0],
+        [132.2753167, 61.93098373, 132.2753167, 61.93098373, 177.3881788, 177.3881788, 177.6381035, 156.7447632, 179.4797426, 0]
+    ],
+    'sanchindachisotouke': [
+        [11.47716376, 114.5169405, 11.47716376, 114.5169405, 176.3834111, 176.3834111, 175.592297, 179.2147185, 163.3744971, 0],
+        [87.20938557, 16.70051146, 87.20938557, 16.70051146, 178.365065, 178.365065, 174.4879716, 162.4809264, 176.8140283, 0]
+    ],
+    'shikodachigedanbarai': [
+        [176.4795284, 153.3314441, 176.4795284, 153.3314441, 107.3410318, 107.3410318, 97.62956052, 153.8734055, 156.7703905, 0],
+        [147.1951634, 175.074177, 147.1951634, 175.074177, 103.3349196, 103.3349196, 128.5222031, 157.1361985, 145.8509965, 0]
+    ],
+    'sotoukemaegeri': [
+        [141.6715664, 12.61353582, 141.6715664, 12.61353582, 177.0001987, 177.0001987, 175.727286, 164.0403825, 160.4981336, 0],
+        [15.39189415, 84.51329129, 15.39189415, 84.51329129, 174.1109382, 174.1109382, 158.9654381, 178.2361718, 159.3976762, 0]
+    ],
+    'zenkutsudachiawasetsuki': [
+        [115.8580351, 130.7511613, 115.8580351, 130.7511613, 171.9446945, 171.9446945, 172.6747746, 144.105041, 178.9400008, 0]
+    ],
+    'zenkutsudachichudantsuki': [
+        [115.8580351, 130.7511613, 115.8580351, 130.7511613, 171.9446945, 171.9446945, 172.6747746, 144.105041, 178.9400008, 0],
+        [156.0357435, 61.09435279, 156.0357435, 61.09435279, 172.3895637, 172.3895637, 162.5085944, 157.2766185, 159.0072517, 0]
+    ],
+    'zenkutsudachiempiuke': [
+        [5.537744135, 138.5696075, 5.537744135, 138.5696075, 176.3914556, 176.3914556, 173.9572285, 166.2690671, 157.8046774, 0],
+        [156.0357435, 61.09435279, 156.0357435, 61.09435279, 172.3895637, 172.3895637, 162.5085944, 157.2766185, 159.0072517, 0]
+    ]
+}'''
+
 class_angles = {
     'hachijidachijodanyoko': [
         [89.04714, 65.86339, 90.93809, 138.40607, 166.8372, 146.91685, 130.31555, 122.15627, 20.859364, 26.549637],
@@ -132,9 +171,9 @@ def calculate_angle(a, b, c):
     a, b, c = np.array(a), np.array(b), np.array(c)
     ba, bc = a - b, c - b
     cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
-    return np.degrees(np.arccos(cosine_angle))
-'''
+    return np.degrees(np.arccos(cosine_angle))'''
 
+# updated Calculate angle function
 # Calculate angles
 def calculate_angle(point1, point2, point3):
     v1 = np.array(point1) - np.array(point2)
@@ -146,9 +185,9 @@ def calculate_angle(point1, point2, point3):
     dot_product = np.dot(v1, v2)
     angle = np.arccos(dot_product / (v1_norm * v2_norm))
     return np.degrees(angle)
+    
 
-
-# Extract angles function
+'''# Extract angles function
 def extract_angles(keypoints):
     try:
 
@@ -168,7 +207,29 @@ def extract_angles(keypoints):
         return angles
     except Exception as e:
         logging.error(f"Error extracting angles: {e}")
+        return []'''
+
+#updated extract angles functon
+def extract_angles(keypoints):
+    try:
+        mp_landmarks = mp.solutions.pose.PoseLandmark
+        angles = [
+            calculate_angle(keypoints[mp_landmarks.LEFT_ELBOW.value], keypoints[mp_landmarks.LEFT_SHOULDER.value], keypoints[mp_landmarks.LEFT_HIP.value]),
+            calculate_angle(keypoints[mp_landmarks.RIGHT_HIP.value], keypoints[mp_landmarks.RIGHT_SHOULDER.value], keypoints[mp_landmarks.RIGHT_ELBOW.value]),
+            calculate_angle(keypoints[mp_landmarks.LEFT_SHOULDER.value], keypoints[mp_landmarks.LEFT_ELBOW.value], keypoints[mp_landmarks.LEFT_WRIST.value]),
+            calculate_angle(keypoints[mp_landmarks.RIGHT_WRIST.value], keypoints[mp_landmarks.RIGHT_ELBOW.value], keypoints[mp_landmarks.RIGHT_SHOULDER.value]),
+            calculate_angle(keypoints[mp_landmarks.LEFT_KNEE.value], keypoints[mp_landmarks.LEFT_HIP.value], keypoints[mp_landmarks.LEFT_SHOULDER.value]),
+            calculate_angle(keypoints[mp_landmarks.RIGHT_SHOULDER.value], keypoints[mp_landmarks.RIGHT_HIP.value], keypoints[mp_landmarks.RIGHT_KNEE.value]),
+            calculate_angle(keypoints[mp_landmarks.LEFT_HIP.value], keypoints[mp_landmarks.LEFT_KNEE.value], keypoints[mp_landmarks.LEFT_ANKLE.value]),
+            calculate_angle(keypoints[mp_landmarks.RIGHT_ANKLE.value], keypoints[mp_landmarks.RIGHT_KNEE.value], keypoints[mp_landmarks.RIGHT_HIP.value]),
+            calculate_angle(keypoints[mp_landmarks.LEFT_KNEE.value], keypoints[mp_landmarks.LEFT_ANKLE.value], keypoints[mp_landmarks.LEFT_HIP.value]),
+            calculate_angle(keypoints[mp_landmarks.RIGHT_HIP.value], keypoints[mp_landmarks.RIGHT_ANKLE.value], keypoints[mp_landmarks.RIGHT_KNEE.value])
+        ]
+        return angles
+    except Exception as e:
+        logging.error(f"Error extracting angles: {e}")
         return []
+        
 
 '''# Compare angles function
 def compare_angles(extracted_angles, predefined_angles):
@@ -181,9 +242,9 @@ def compare_angles(extracted_angles, predefined_angles):
         
         similarity = np.mean(1 - np.abs(np.array(aligned_extracted_angles) - np.array(angles)) / 180) * 100
         similarities.append(similarity)
-    return max(similarities)
-'''
+    return max(similarities)'''
 
+# compae angles update function
 # Compare angles with predefined data
 def compare_angles(extracted_angles, class_name):
     predefined_angles = class_angles.get(class_name, [])
@@ -196,7 +257,7 @@ def compare_angles(extracted_angles, class_name):
         mae = np.mean(diff)
         print(mae)
     return max(similarities)
-
+    
 
 # Load image function
 def load_image(image_path):
@@ -226,8 +287,8 @@ def main_model():
         
 
         preprocessed_frames = data.get('preprocessed_frames')
-        video_name = data.get('video_name', 'video1.mp4')
-        player_email = data.get('player_email', 'katadofyp@gmail.com')
+        video_name = data.get('video_name', 'video2.mp4')
+        player_email = data.get('email', 'sandalisithumani@gmail.com')
 
         if not preprocessed_frames:
             logging.error("Missing required preprocessed frames.")
@@ -273,10 +334,13 @@ def main_model():
             predicted_class_index = np.argmax(predictions)
             class_name = class_index_to_name[predicted_class_index]
 
-            '''predefined_angles = class_angles.get(class_name, [])
-            similarity = compare_angles(extracted_angles, predefined_angles) if predefined_angles else None
-'''
-            similarity = compare_angles(extracted_angles, class_name) if class_name else None
+            #predefined_angles = class_angles.get(class_name, [])
+            #similarity = compare_angles(extracted_angles, predefined_angles) if predefined_angles else None
+
+            #if not comment the predefined_angles and similarity and use the below one
+            similarity = compare_angles(extracted_angles, class_name)
+
+
             if similarity is not None:
                 if r_id is None:
                     r_id = save_result(video_name, player_email)
@@ -294,6 +358,7 @@ def main_model():
         logging.error(f"Error in main model: {e}")
         return jsonify({'error': str(e)}), 501
     
+
 
 def save_result(video_name, player_email):
     try:
@@ -347,6 +412,53 @@ def update_result(r_id, final_result):
     except Exception as e:
         db.rollback()
         raise e
+    
+def calculate_and_update_ranks():
+    try:
+        db = get_db()  # Get the database connection
+        cursor = db.cursor()
+
+        # Step 1: Retrieve all results sorted by final_result in descending order
+        cursor.execute('''
+            SELECT Result_id, P_email, Final_result FROM Result
+            ORDER BY Final_result DESC
+        ''')
+        results = cursor.fetchall()
+
+        # Step 2: Assign ranks and update the database
+        rank = 1
+        previous_final_result = None  # To track previous Final_result for tie handling
+        tie_count = 0  # To count the number of players with the same Final_result
+
+        for i, result in enumerate(results):
+            result_id = result[0]
+            player_email = result[1]
+            final_result = result[2]
+
+            # Step 3: Check if the current result is the same as the previous one (tie situation)
+            if final_result == previous_final_result:
+                tie_count += 1  # Increment tie count for the same final_result
+            else:
+                # If it's not a tie, update the rank to the correct rank based on position
+                rank = i + 1  # The rank is based on the position in the sorted list
+                tie_count = 0  # Reset tie count for new final_result
+
+            # Step 4: Update the player's rank in the database
+            cursor.execute('''
+                UPDATE Result
+                SET Rank_P = %s
+                WHERE Result_id = %s
+            ''', (rank, result_id))
+            
+            previous_final_result = final_result  # Update the previous result
+
+        db.commit()
+        cursor.close()
+        logging.info("Ranks updated successfully.")
+    
+    except Exception as e:
+        db.rollback()
+        logging.error(f"Error updating ranks: {e}")
 
 
 @main_model_api.route('/delete_image', methods=['POST'])
@@ -380,3 +492,121 @@ def delete_single_pose(single_pose_id):
     cursor.execute('DELETE FROM Single_pose WHERE Single_pose_id = %s', (single_pose_id,))
     db.commit()
     cursor.close()
+
+
+def get_single_leaderboard(player_email):
+    try:
+        db = get_db()  # Get the database connection
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT Video_name, Final_result
+            FROM Result
+            WHERE P_email = %s
+            ORDER BY Date DESC
+        ''', (player_email,))
+        
+        results = cursor.fetchall()
+        cursor.close()
+        
+        # Format the results as a list of dictionaries with video name and email
+        results_list = []
+        for result in results:
+            results_list.append({
+                'video_name': result[0],
+                'final_score': float(result[1])
+            })
+        return results_list
+
+    except Exception as e:
+        logging.error(f"Error retrieving player results: {e}")
+        return None
+        
+
+@main_model_api.route('/single_leaderboard', methods=['POST'])
+def single_leaderboard():
+    try:
+        player_email = request.get_json().get('Email')
+
+        if not player_email:
+            return jsonify({'error': 'Player email is required'}), 400
+
+        results = get_single_leaderboard(player_email)
+
+        if results is None:
+            return jsonify({'error': 'Error retrieving player results'}), 500
+
+        return jsonify(results), 200
+
+    except Exception as e:
+        logging.error(f"Error in single_leaderboard endpoint: {e}")
+        return jsonify({'error': str(e)}), 500
+    
+def get_global_leaderboard():
+    try:
+        db = get_db()  # Get the database connection
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT F_name, L_name, Final_result
+            FROM Result
+            JOIN Player ON Result.P_email = Player.Email
+            ORDER BY Final_result DESC
+        ''')
+        
+        results = cursor.fetchall()
+        cursor.close()
+        
+        # Format the results as a list of dictionaries
+        leaderboard = []
+        for result in results:
+            leaderboard.append({
+                
+                'first_name': result[0],
+                'last_name': result[1],
+                'final_score': float(result[2])
+            })
+
+        return leaderboard
+
+    except Exception as e:
+        logging.error(f"Error retrieving global leaderboard: {e}")
+        return None
+
+@main_model_api.route('/global_leaderboard', methods=['GET'])
+def global_leaderboard():
+    try:
+        leaderboard = get_global_leaderboard()
+
+        if leaderboard is None:
+            return jsonify({'error': 'Error retrieving global leaderboard'}), 500
+
+        return jsonify(leaderboard), 200
+
+    except Exception as e:
+        logging.error(f"Error in global_leaderboard endpoint: {e}")
+        return jsonify({'error': str(e)}), 500
+    
+
+@main_model_api.route('/get_user_rank', methods=['GET'])
+def get_user_rank():
+    player_email = request.args.get('player_email')
+    if not player_email:
+        return jsonify({'error': 'Player email is required'}), 400
+
+    try:
+        # Fetch user rank from the database
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT Rank_P FROM Result WHERE P_email = %s
+        ''', (player_email,))
+        result = cursor.fetchone()
+        cursor.close()
+
+        if result is None:
+            return jsonify({'error': 'Rank not found'}), 404
+        
+        rank = result[0]
+        return jsonify({'rank': rank}), 200
+    except Exception as e:
+        logging.error(f"Error fetching user rank: {e}")
+        return jsonify({'error': str(e)}), 500

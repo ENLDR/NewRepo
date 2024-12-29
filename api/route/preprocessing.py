@@ -105,7 +105,7 @@ def preprocessing():
 
         raw_frames = data.get('frames')
         video_name = data.get('video_name', 'default_video_name.mp4')
-        player_email = data.get('player_email', 'test@example.com')
+        player_email = data.get('email', 'test@example.com')
 
         if not raw_frames:
             logging.error("No frames provided in the request.")
@@ -126,7 +126,7 @@ def preprocessing():
             preprocessed_frames_base64.append(frame_base64)
 
         main_model_payload = {
-            'preprocessed_frames': preprocessed_frames_base64
+            'preprocessed_frames': preprocessed_frames_base64,'email':player_email,'video_name':video_name
         }
 
         main_model_url = 'http://192.168.1.10:5000/api/main_model_api/main_model'

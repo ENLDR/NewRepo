@@ -87,6 +87,7 @@ def watch_guide_video():
         connection.commit()
         return jsonify({'message': 'Guide video successfully logged.'}), 200
     except mysql.connector.Error as error:
+        Login.info(str(error))
         return jsonify({'error': str(error)}), 500
     finally:
         if connection.is_connected():

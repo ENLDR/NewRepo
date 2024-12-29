@@ -54,7 +54,7 @@ def preprocess_frame(frame):
         logging.error(f"Error preprocessing frame: {e}")
         return None
 
-def classify_and_send_frames(video_file_path):
+def classify_and_send_frames(video_file_path,email,video_name):
     logging.info(f"Processing video: {video_file_path}")
     cap = cv2.VideoCapture(video_file_path)
     if not cap.isOpened():
@@ -117,12 +117,12 @@ def classify_and_send_frames(video_file_path):
                 frames_data.append(frame_base64)
 
     logging.info("Sending frames to preprocessing API.")
-    response = send_frames_to_preprocessing(frames_data)
+    response = send_frames_to_preprocessing(frames_data,email,video_name)
     return response
 
-def send_frames_to_preprocessing(frames_data):
+def send_frames_to_preprocessing(frames_data,email,video_name):
     preprocessing_url = 'http://192.168.1.10:5000/api/preprocessing_api/preprocessing'
-    payload = {'frames': frames_data}
+    payload = {'frames': frames_data,'email': email,'video_name':video_name}
     headers = {'Content-Type': 'application/json'}
     logging.debug("Sending frames to preprocessing API...")
 
@@ -140,9 +140,9 @@ def send_frames_to_preprocessing(frames_data):
 @frame_extraction_api.route('/process_local_video', methods=['POST'])
 def process_local_video():
 
-    
+    email = request.get_json().get('email')
     _title = request.get_json().get('title')
-    logging.info(_title)
+    logging.info(email)
     video_path = f"D:/UpWork/NewRepo/uploads/{_title}"
 
     if not os.path.exists(video_path):
@@ -152,7 +152,7 @@ def process_local_video():
 
     try:
         
-        response_data = classify_and_send_frames(video_path)
+        response_data = classify_and_send_frames(video_path,email,_title)
         
         if 'error' in response_data:
             return jsonify({'error': response_data['error']}), 401
