@@ -27,7 +27,7 @@ def upload_video():
     video_path = os.path.join("./uploads", video.filename)
     video.save(video_path)
 
-    start_frame_extraction(video.filename)
+    start_frame_extraction(video.filename, email)
 
     return jsonify({
         "message": "Video uploaded successfully",
@@ -37,9 +37,9 @@ def upload_video():
     }), 200
 
 
-def start_frame_extraction(title):
+def start_frame_extraction(title, email):
     frame_extraction_url= 'http://10.95.147.34:5000/api/frame_extraction_api/process_local_video'
-    payload = {'title': title}
+    payload = {'title': title, 'email': email}
     headers = {'Content-Type': 'application/json'}
 
     try:
