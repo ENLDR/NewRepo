@@ -129,7 +129,7 @@ def preprocessing():
             'preprocessed_frames': preprocessed_frames_base64,'email':player_email,'video_name':video_name
         }
 
-        main_model_url = 'http://192.168.1.10:5000/api/main_model_api/main_model'
+        main_model_url = 'http://10.95.147.34:5000/api/main_model_api/main_model'
         response = requests.post(main_model_url, json=main_model_payload, timeout=300)
         response.raise_for_status()
 

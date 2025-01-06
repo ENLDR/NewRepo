@@ -38,7 +38,7 @@ def upload_video():
 
 
 def start_frame_extraction(title):
-    frame_extraction_url= 'http://192.168.1.10:5000/api/frame_extraction_api/process_local_video'
+    frame_extraction_url= 'http://10.95.147.34:5000/api/frame_extraction_api/process_local_video'
     payload = {'title': title}
     headers = {'Content-Type': 'application/json'}
 
